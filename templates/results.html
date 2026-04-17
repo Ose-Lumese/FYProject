@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentri — Analysis Results</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+    <!-- ORBS -->
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <!-- NAV -->
+    <nav>
+        <a class="nav-brand" href="/">
+            <div class="nav-shield">🛡</div>
+            <span class="nav-logo-text">Sentri</span>
+        </a>
+
+        <div class="nav-status">
+            <div class="status-dot"></div>
+            ANALYSIS COMPLETE
+        </div>
+    </nav>
+
+    <main>
+
+        <!-- HERO -->
+        <div class="hero">
+
+            <div class="shield-icon">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V6L12 2z" />
+                </svg>
+            </div>
+
+            <h1><span>Analysis Results</span></h1>
+
+            <p>
+                {{ total_flows }} flows analyzed • {{ malicious_count }} threats detected
+            </p>
+
+        </div>
+
+        <!-- SUMMARY CARD -->
+        <div class="upload-card">
+
+            <div class="card-header">
+                <div class="card-header-left">
+                    <div class="terminal-dot"></div>
+                    <span>Threat Summary</span>
+                </div>
+            </div>
+
+            <div class="card-footer" style="justify-content: space-around; flex-wrap: wrap;">
+
+                <div class="file-badge visible">
+                    Total: {{ total_flows }}
+                </div>
+
+                <div class="file-badge visible" style="border-color: #ef4444;">
+                    Malicious: {{ malicious_count }}
+                </div>
+
+                <div class="file-badge visible" style="border-color: #0af0a0;">
+                    Benign: {{ total_flows - malicious_count }}
+                </div>
+
+            </div>
+        </div>
+
+        <!-- THREATS -->
+        <div class="upload-card">
+
+            <div class="card-header">
+                <div class="card-header-left">
+                    <div class="terminal-dot"></div>
+                    <span>Detected Threats</span>
+                </div>
+            </div>
+
+            <div style="padding: 1rem 1.25rem;">
+
+                {% for threat in threats %}
+
+                <div class="drop-zone" style="display:block; height:auto; padding:1rem; margin-bottom:10px;">
+
+                    <div style="display:flex; justify-content:space-between;">
+                        <strong>{{ threat.type }}</strong>
+                        <span style="color: var(--accent2); font-family: var(--font-mono); font-size:0.75rem;">
+                            {{ threat.severity }}
+                        </span>
+                    </div>
+
+                    <div style="font-family: var(--font-mono); font-size:0.75rem; opacity:0.7; margin-top:6px;">
+                        {{ threat.source_ip }} → {{ threat.dest_ip }}
+                    </div>
+
+                    <div style="font-size:0.75rem; margin-top:6px; color: var(--muted); font-family: var(--font-mono);">
+                        {{ threat.service }} | {{ threat.timestamp }}
+                    </div>
+
+                    <div style="margin-top:8px; font-size:0.8rem; color: var(--text); opacity:0.85;">
+                        {{ threat.recommendation }}
+                    </div>
+
+                </div>
+
+                {% endfor %}
+
+            </div>
+        </div>
+
+        <!-- CORRELATION -->
+        <div class="upload-card">
+
+            <div class="card-header">
+                <div class="card-header-left">
+                    <div class="terminal-dot"></div>
+                    <span>Correlation Analysis</span>
+                </div>
+            </div>
+
+            <div style="padding:1rem 1.25rem; font-family:var(--font-mono); font-size:0.8rem; color:var(--muted); line-height:1.6;">
+
+                <p>• SQL Injection attempt correlated with repeated authentication failures</p>
+                <p>• Port scanning activity suggests reconnaissance phase across network segment</p>
+
+            </div>
+        </div>
+
+    </main>
+
+</body>
+</html>

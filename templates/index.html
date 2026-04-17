@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sentri — Intelligent Intrusion Detection</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <!-- NAV -->
+    <nav>
+        <a class="nav-brand" href="#">
+            <div class="nav-shield">🛡</div>
+            <span class="nav-logo-text">Sentri</span>
+        </a>
+        <div class="nav-status">
+            <div class="status-dot"></div>
+            SYSTEM ONLINE
+        </div>
+    </nav>
+
+    <main>
+        <!-- HERO -->
+        <div class="hero">
+            <div class="shield-icon">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V6L12 2z" />
+                </svg>
+            </div>
+            <h1><span>Sentri</span></h1>
+            <p>Intelligent flow-based intrusion detection powered by AI. Upload or paste your network flow data below
+                for instant analysis.</p>
+        </div>
+
+        <!-- UPLOAD CARD -->
+        <div class="upload-card">
+
+            <!-- Card Header -->
+            <div class="card-header">
+                <div class="card-header-left">
+                    <div class="terminal-dot"></div>
+                    <span id="filename-display">No file selected</span>
+                </div>
+                <div class="card-actions">
+                    <label for="file-input" class="btn btn-ghost" id="upload-btn">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        Upload
+                    </label>
+                    <input type="file" id="file-input" accept=".pcap" />
+                </div>
+            </div>
+
+            <!-- SINGLE PCAP DROP ZONE -->
+            <div class="drop-zone" id="tab-upload" ondragover="handleDragOver(event)"
+                ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+
+                <div class="drop-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                </div>
+
+                <div class="drop-text">
+                    <strong>Upload PCAP file</strong><br />
+                    Drag & drop or click upload
+                </div>
+            </div>
+
+            <!-- Card Footer -->
+            <div class="card-footer">
+                <div class="footer-info">
+                    Supported: <span>PCAP</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div class="file-badge" id="file-badge">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                        </svg>
+                        <span id="badge-name">no file selected</span>
+                    </div>
+                    <button class="btn btn-primary" id="analyze-btn" onclick="analyzeFlows()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                        Analyze Flows
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- FORMAT TAGS -->
+        <div class="formats">
+            <span class="format-label">detects:</span>
+            <span class="format-tag">DDoS</span>
+            <span class="format-tag">DoS</span>
+            <span class="format-tag">Mirai</span>
+            <span class="format-tag">Port Scan</span>
+            <span class="format-tag">SQL Injection</span>
+            <span class="format-tag">MITM</span>
+            <span class="format-tag">+ 28 more</span>
+        </div>
+
+    </main>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast">
+        <div class="toast-dot"></div>
+        <span id="toast-msg">Sample data loaded</span>
+    </div>
+
+    <script>
+        document.getElementById('file-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            handleFile(file);
+        });
+
+        function handleFile(file) {
+            document.getElementById('filename-display').textContent = file.name;
+            document.getElementById('badge-name').textContent = file.name;
+            document.getElementById('file-badge').classList.add('visible');
+
+            const dropZone = document.getElementById('tab-upload');
+            dropZone.classList.add('file-loaded');
+
+            // just update text instead of destroying HTML
+            dropZone.querySelector('.drop-text').innerHTML =
+                `<strong>File loaded</strong><br/>Click or drop to replace`;
+
+            showToast(`PCAP loaded: ${file.name}`);
+        }
+
+        // Drag and drop
+        function handleDragOver(e) {
+            e.preventDefault();
+            document.getElementById('tab-upload').classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            document.getElementById('tab-upload').classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            document.getElementById('tab-upload').classList.remove('drag-over');
+
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        }
+
+        // Analyze (IMPORTANT FIX HERE)
+        function analyzeFlows() {
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                showToast('⚠ Please upload a PCAP file first');
+                return;
+            }
+
+            const btn = document.getElementById('analyze-btn');
+            btn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+        style="animation:spin 1s linear infinite">
+            <circle cx="12" cy="12" r="10"/>
+        </svg>
+        Analyzing...
+    `;
+            btn.disabled = true;
+
+            // IMPORTANT: send actual file (not filename text)
+            const formData = new FormData();
+            formData.append("file", file);
+
+            fetch('/analyze', {
+                method: 'POST',
+                body: formData
+            })
+                .then(async res => {
+                    if (!res.ok) {
+                        throw new Error(await res.text());
+                    }
+                    return res.json();
+                })
+                .then(result => {
+                    sessionStorage.setItem('sentri_results', JSON.stringify(result));
+                    sessionStorage.setItem('file_name', file.name);
+
+                    window.location.href = '/loading';
+                })
+                .catch(err => {
+                    console.log(err);
+
+                    showToast('⚠ Unable to analyze file. Try again.');
+                    btn.innerHTML = `Analyze Flows`;
+                    btn.disabled = false;
+                });
+        }
+
+        // Toast
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function resetFile() {
+            document.getElementById('file-input').value = "";
+
+            document.getElementById('filename-display').textContent = "No file selected";
+            document.getElementById('badge-name').textContent = "no file selected";
+            document.getElementById('file-badge').classList.remove('visible');
+
+            const dropZone = document.getElementById('tab-upload');
+            dropZone.classList.remove('file-loaded');
+
+            dropZone.querySelector('.drop-text').innerHTML =
+                `<strong>Upload PCAP file</strong><br />Drag & drop or click upload`;
+
+            showToast("File removed — upload again");
+        }
+        // Spin animation
+        const style = document.createElement('style');
+        style.textContent = `@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
+        document.head.appendChild(style);
+    </script>
+</body>
+
+</html>
