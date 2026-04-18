@@ -49,6 +49,9 @@ def extract_features_from_pcap(pcap_file, window_size=10):
     print(f"Total records extracted: {len(df)}")
     return df
 
+def best_window(window):
+    # pick packet with most data (most "informative" packet)
+    return max(window, key=lambda pkt: len(pkt))
 
 def extract_window_features(window, proto):
     """Extract all 46 features from a window of packets"""
@@ -143,7 +146,15 @@ def extract_window_features(window, proto):
 
         # ---- CALCULATE FLOW FEATURES ----
         timestamps = sorted(timestamps)
-        flow_duration = timestamps[-1] - timestamps[0] if len(timestamps) > 1 else 0
+
+        total_duration = (
+            sum(
+                [timestamps[i+1] - timestamps[i] for i in range(len(timestamps)-1)]
+            )
+            if len(timestamps) > 1 else 0
+        )
+
+        flow_duration = total_duration
 
         # Inter-arrival times
         iats = [timestamps[j+1] - timestamps[j] for j in range(len(timestamps)-1)]
@@ -168,6 +179,9 @@ def extract_window_features(window, proto):
         # Statistical features
         tot_sum = sum(pkt_sizes)
         number = len(window)
+
+        #Flow ID
+        flow_id = f"{window[0][IP].src}-{window[0][IP].dst}-{proto}"
 
         # Magnitude
         magnitude = math.sqrt(sum([s**2 for s in pkt_sizes])) / number if number > 0 else 0
@@ -207,7 +221,7 @@ def extract_window_features(window, proto):
             1883: 'MQTT', 5060: 'SIP', 5900: 'VNC', 6379: 'Redis'
         }
 
-        first_pkt = window[0]
+        first_pkt = best_window(window)
         found_services = set()
 
         # 2. Loop through all 10 packets in the window
@@ -246,7 +260,10 @@ def extract_window_features(window, proto):
         timestamp_str = datetime.fromtimestamp(timestamps[0]).strftime('%Y-%m-%d %H:%M:%S')
 
         record = {
+            'Flow_ID': flow_id,
             'Timestamp': timestamp_str,
+            'first_seen': timestamp_str,
+            'last_seen': datetime.fromtimestamp(timestamps[-1]).strftime('%Y-%m-%d %H:%M:%S'),
             'Src_IP': src_ip,
             'Dst_IP': dst_ip,
             'Src_MAC': src_mac,
@@ -310,6 +327,7 @@ def extract_window_features(window, proto):
         return None
 
 
+
 def pcap_to_csv(pcap_file, display_csv, model_csv, window_size=10):
     """
     Saves two separate CSVs: 
@@ -325,7 +343,7 @@ def pcap_to_csv(pcap_file, display_csv, model_csv, window_size=10):
     # 1. DEFINE FRONT-END COLUMNS
     # Adding 'Tot size' (Bytes), 'Number' (Packets), and 'flow_duration' (Time)
     display_columns = [
-        'Timestamp', 'Src_IP', 'Dst_IP', 'Src_MAC', 'Dst_MAC', 
+        'Flow_ID','Timestamp', 'Src_IP', 'Dst_IP', 'Src_MAC', 'Dst_MAC', 
         'Protocol_Name', 'Service', 'Tot size', 'Number', 'flow_duration'
     ]
     

@@ -67,70 +67,63 @@
     </main>
 
     <script>
-const storedFileName = sessionStorage.getItem('file_name');
+        const storedFileName = sessionStorage.getItem('file_name');
 
-document.getElementById('file-display-name').textContent =
-    storedFileName ? storedFileName : "pasted_data.csv";
+        document.getElementById('file-display-name').textContent =
+            storedFileName ? storedFileName : "uploaded_file.pcap";
 
-const stepEls = document.querySelectorAll(".step");
+        const stepEls = document.querySelectorAll(".step");
 
-const steps = [
-    "Step 1/3: Pre-analysis check",
-    "Step 2/3: Feature extraction",
-    "Step 3/3: Running AI detection"
-];
+        const steps = [
+            "Step 1/3: Pre-analysis check",
+            "Step 2/3: Feature extraction",
+            "Step 3/3: Running AI detection"
+        ];
 
-let current = 0;
+        let current = 0;
 
-// render all states
-function render() {
-    stepEls.forEach((el, i) => {
+        function render() {
+            stepEls.forEach((el, i) => {
 
-        if (i < current) {
-            el.className = "step done";
-            el.innerHTML = `✔ ${steps[i]}`;
+                if (i < current) {
+                    el.className = "step done";
+                    el.innerHTML = `✔ ${steps[i]}`;
 
-        } else if (i === current) {
-            el.className = "step active";
-            el.innerHTML = `⏳ ${steps[i]}`;
+                } else if (i === current) {
+                    el.className = "step active";
+                    el.innerHTML = `<span class="loader"></span> ${steps[i]}`;
 
-        } else {
-            el.className = "step";
-            el.innerHTML = `⚪ ${steps[i]}`;
+                } else {
+                    el.className = "step";
+                    el.innerHTML = `⚪ ${steps[i]}`;
+                }
+            });
         }
-    });
-}
 
-// run one step fully (loading → done)
-function runStep() {
+        function runStep() {
+            if (current >= steps.length) {
 
-    if (current >= steps.length) {
-        document.getElementById("eta").textContent = "Complete!";
+                render();
+                
+                document.getElementById("eta").textContent = "Complete!";
 
-        setTimeout(() => {
-            window.location.href = "/results";
-        }, 1000);
+                setTimeout(() => {
+                    window.location.href = "/results";
+                }, 800);
 
-        return;
-    }
+                return;
+            }
 
-    // STEP START → LOADING
-    render();
+            render();
 
-    setTimeout(() => {
+            setTimeout(() => {
+                current++;
+                runStep();
+            }, 1000); // adjust speed here
+        }
 
-        // STEP COMPLETE → DONE
-        current++;
-        render();
-
-        // NEXT STEP ONLY AFTER THIS IS DONE
-        setTimeout(runStep, 400);
-
-    }, 1500);
-}
-
-runStep();
-</script>
+        runStep();
+    </script>
 
 </body>
 

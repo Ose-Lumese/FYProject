@@ -5,137 +5,287 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sentri — Analysis Results</title>
-
-    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
 
-    <!-- ORBS -->
     <div class="orb orb-1"></div>
     <div class="orb orb-2"></div>
 
-    <!-- NAV -->
+    <!-- NAV — identical to index.html -->
     <nav>
         <a class="nav-brand" href="/">
             <div class="nav-shield">🛡</div>
             <span class="nav-logo-text">Sentri</span>
         </a>
-
         <div class="nav-status">
             <div class="status-dot"></div>
             ANALYSIS COMPLETE
         </div>
     </nav>
 
-    <main>
+    <main class="results-main">
 
-        <!-- HERO -->
-        <div class="hero">
-
-            <div class="shield-icon">
-                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V6L12 2z" />
-                </svg>
-            </div>
-
-            <h1><span>Analysis Results</span></h1>
-
-            <p>
-                {{ total_flows }} flows analyzed • {{ malicious_count }} threats detected
-            </p>
-
-        </div>
-
-        <!-- SUMMARY CARD -->
-        <div class="upload-card">
-
-            <div class="card-header">
-                <div class="card-header-left">
-                    <div class="terminal-dot"></div>
-                    <span>Threat Summary</span>
-                </div>
-            </div>
-
-            <div class="card-footer" style="justify-content: space-around; flex-wrap: wrap;">
-
-                <div class="file-badge visible">
-                    Total: {{ total_flows }}
-                </div>
-
-                <div class="file-badge visible" style="border-color: #ef4444;">
-                    Malicious: {{ malicious_count }}
-                </div>
-
-                <div class="file-badge visible" style="border-color: #0af0a0;">
-                    Benign: {{ total_flows - malicious_count }}
-                </div>
-
+        <!-- PAGE HEADER -->
+        <div class="results-header">
+            <a href="/" class="back-link">&#8592;</a>
+            <div>
+                <!-- Matches index.html hero h1 with gradient span -->
+                <h1 class="results-title"><span>Analysis Results</span></h1>
+                <p class="results-subtitle">{{ total_flows }} flows analyzed</p>
             </div>
         </div>
 
-        <!-- THREATS -->
-        <div class="upload-card">
+        <!-- SUMMARY GRID -->
+        <div class="summary-grid">
 
-            <div class="card-header">
-                <div class="card-header-left">
-                    <div class="terminal-dot"></div>
-                    <span>Detected Threats</span>
+            <div class="summary-card">
+                <div class="summary-card-icon summary-icon-blue">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
                 </div>
+                <span class="summary-value">{{ total_flows }}</span>
+                <span class="summary-label">Total Flows</span>
             </div>
 
-            <div style="padding: 1rem 1.25rem;">
-
-                {% for threat in threats %}
-
-                <div class="drop-zone" style="display:block; height:auto; padding:1rem; margin-bottom:10px;">
-
-                    <div style="display:flex; justify-content:space-between;">
-                        <strong>{{ threat.type }}</strong>
-                        <span style="color: var(--accent2); font-family: var(--font-mono); font-size:0.75rem;">
-                            {{ threat.severity }}
-                        </span>
-                    </div>
-
-                    <div style="font-family: var(--font-mono); font-size:0.75rem; opacity:0.7; margin-top:6px;">
-                        {{ threat.source_ip }} → {{ threat.dest_ip }}
-                    </div>
-
-                    <div style="font-size:0.75rem; margin-top:6px; color: var(--muted); font-family: var(--font-mono);">
-                        {{ threat.service }} | {{ threat.timestamp }}
-                    </div>
-
-                    <div style="margin-top:8px; font-size:0.8rem; color: var(--text); opacity:0.85;">
-                        {{ threat.recommendation }}
-                    </div>
-
+            <div class="summary-card">
+                <div class="summary-card-icon summary-icon-red">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
                 </div>
-
-                {% endfor %}
-
+                <span class="summary-value summary-value--danger">{{ malicious_count }}</span>
+                <span class="summary-label">Malicious</span>
             </div>
+
+            <div class="summary-card">
+                <div class="summary-card-icon summary-icon-green">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V6L12 2z" />
+                        <polyline points="9 12 11 14 15 10" />
+                    </svg>
+                </div>
+                <span class="summary-value summary-value--safe">{{ total_flows - malicious_count }}</span>
+                <span class="summary-label">Benign</span>
+            </div>
+
+            <div class="summary-card summary-card--ratio">
+                <div class="donut-wrapper">
+                    <svg class="donut-svg" viewBox="0 0 80 80">
+                        <circle class="donut-track" cx="40" cy="40" r="30" fill="none" stroke-width="8" />
+                        <circle class="donut-fill" cx="40" cy="40" r="30" fill="none" stroke-width="8"
+                            stroke-dasharray="{{ threat_ratio_dash }} 188.5" transform="rotate(-90 40 40)" />
+                    </svg>
+                    <span class="donut-label">{{ threat_ratio }}%</span>
+                </div>
+                <span class="summary-label">Threat Ratio</span>
+            </div>
+
         </div>
 
-        <!-- CORRELATION -->
-        <div class="upload-card">
+        <!-- DETECTED THREATS HEADING -->
+        <div class="section-heading">
+            <span class="section-heading-icon">&#9888;</span>
+            <h2>Detected Threats</h2>
+        </div>
 
-            <div class="card-header">
-                <div class="card-header-left">
-                    <div class="terminal-dot"></div>
-                    <span>Correlation Analysis</span>
+        <div class="filter-bar">
+            <button class="filter-btn active" onclick="filterThreats('all')">All</button>
+            <button class="filter-btn" onclick="filterThreats('DDoS')">DDoS</button>
+            <button class="filter-btn" onclick="filterThreats('DoS')">DoS</button>
+            <button class="filter-btn" onclick="filterThreats('Brute Force')">Brute Force</button>
+            <button class="filter-btn" onclick="filterThreats('Spoofing')">Spoofing</button>
+            <button class="filter-btn" onclick="filterThreats('Recon')">Recon</button>
+            <button class="filter-btn" onclick="filterThreats('Web-based')">Web-based</button>
+            <button class="filter-btn" onclick="filterThreats('Mirai')">Mirai</button>
+        </div>
+
+        <!-- THREATS LIST -->
+        <div class="threats-list">
+            {% for threat in threats %}
+            <div id="no-results-message" class="empty-state" style="display:none;">
+                <div class="empty-icon">&#9888;</div>
+                <p class="empty-title" id="empty-text">No threats found</p>
+            </div>
+            <div class="threat-card" data-index="{{ loop.index0 }}" data-category="{{ threat.main_category }}">
+                <!-- COLLAPSED HEADER ROW — ✅ FIXED closing tag (was self-closing with </div> on wrong line) -->
+                <div class="threat-collapsed" onclick="toggleThreat({{ loop.index0 }})">
+                    <div class="threat-collapsed-left">
+                        <span class="severity-chip severity-{{ threat.severity | lower }}">{{ threat.severity }}</span>
+                        <span class="threat-name">{{ threat.type }}</span>
+                    </div>
+                    <div class="threat-collapsed-right">
+                        <span class="threat-timestamp">{{ threat.timestamp }}</span>
+                        <span class="threat-chevron" id="chevron-{{ loop.index0 }}"><sup>&#8964;</sup></span>
+                    </div>
+                </div>
+
+                <!-- SUMMARY LINE (always visible under collapsed header) -->
+                <div class="threat-summary-line">
+                    <span class="threat-description">{{ threat.description }}</span>
+                </div>
+                <div class="threat-inline-meta">
+                    <span class="ip-addr">{{ threat.source_ip }}</span>
+                    <span class="meta-arrow">&#8594;</span>
+                    <span class="ip-addr">{{ threat.dest_ip }}</span>
+                    <span class="proto-tag proto-{{ threat.protocol | lower }}">{{ threat.protocol }}</span>
+                    <span class="meta-muted">{{ threat.service }}</span>
+                </div>
+
+                <!-- EXPANDED PANEL (toggled by JS) -->
+                <div class="threat-expanded" id="expanded-{{ loop.index0 }}" style="display:none;">
+
+                    <div class="threat-description-expanded">{{ threat.description }}</div>
+
+                    <div class="endpoint-grid">
+                        <div class="endpoint-card">
+                            <div class="endpoint-label">
+                                <span class="endpoint-icon">&#128100;</span> Source
+                            </div>
+                            <div class="endpoint-ip">IP: {{ threat.source_ip }}</div>
+                            {% if threat.source_mac %}
+                            <div class="endpoint-mac">MAC: {{ threat.source_mac }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="endpoint-card">
+                            <div class="endpoint-label">
+                                <span class="endpoint-icon endpoint-icon-red">&#128100;</span> Destination
+                            </div>
+                            <div class="endpoint-ip">IP: {{ threat.dest_ip }}</div>
+                            {% if threat.dest_mac %}
+                            <div class="endpoint-mac">MAC: {{ threat.dest_mac }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="flow-stats">
+                        {% if threat.bytes %}
+                        <span>Bytes: <strong>{{ "{:,}".format(threat.bytes) }}</strong></span>
+                        {% endif %}
+                        {% if threat.packets %}
+                        <span>Packets: <strong>{{ threat.packets }}</strong></span>
+                        {% endif %}
+                        {% if threat.duration %}
+                        <span>Duration: <strong>{{ threat.duration }}</strong></span>
+                        {% endif %}
+                        {% if threat.flags %}
+                        <span>Flags: <strong class="flag-highlight">{{ threat.flags }}</strong></span>
+                        {% endif %}
+                    </div>
+
+                    <div class="flow-meta-row">
+                        <span>Protocol: <strong class="proto-tag proto-{{ threat.protocol | lower }}">{{ threat.protocol
+                                }}</strong></span>
+                        <span>Service: <strong>{{ threat.service }}</strong></span>
+                        <span>Time: <strong>{{ threat.timestamp }}</strong></span>
+                    </div>
+
+                    <div class="ai-recommendation">
+                        <div class="ai-rec-header">
+                            <span class="ai-rec-icon">&#9432;</span>
+                            <span class="ai-rec-title">AI Recommendation</span>
+                        </div>
+                        <p class="ai-rec-body">{{ threat.recommendation }}</p>
+                    </div>
+
                 </div>
             </div>
 
-            <div style="padding:1rem 1.25rem; font-family:var(--font-mono); font-size:0.8rem; color:var(--muted); line-height:1.6;">
-
-                <p>• SQL Injection attempt correlated with repeated authentication failures</p>
-                <p>• Port scanning activity suggests reconnaissance phase across network segment</p>
-
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">&#10003;</div>
+                <p class="empty-title">No Threats Detected</p>
+                <p class="empty-sub">All {{ total_flows }} analyzed flows appear benign.</p>
             </div>
+            {% endfor %}
         </div>
+
+        <!-- CROSS-FLOW CORRELATIONS -->
+        {% if correlations %}
+        <div class="section-heading">
+            <span class="section-heading-icon">&#9684;</span>
+            <h2>Cross-Flow Correlations</h2>
+        </div>
+        <div class="correlations-list">
+            {% for note in correlations %}
+            <div class="correlation-item">
+                <span class="corr-num">#{{ loop.index }}</span>
+                <span class="corr-text">{{ note }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
     </main>
 
+    <script>
+
+        function filterThreats(category) {
+            const cards = document.querySelectorAll('.threat-card');
+            const buttons = document.querySelectorAll('.filter-btn');
+            const emptyBox = document.getElementById('no-results-message');
+            const emptyText = document.getElementById('empty-text');
+
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const type = card.getAttribute('data-category');
+
+                if (category === 'all' || type === category) {
+                    card.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            // ✅ SHOW EMPTY MESSAGE
+            if (visibleCount === 0) {
+                emptyBox.style.display = 'block';
+
+                if (category === 'all') {
+                    emptyText.textContent = "No threats found";
+                } else {
+                    emptyText.textContent = `No ${category} threats found`;
+                }
+            } else {
+                emptyBox.style.display = 'none';
+            }
+        }
+
+        function toggleThreat(index) {
+            const expanded = document.getElementById(`expanded-${index}`);
+            const chevron = document.getElementById(`chevron-${index}`);
+            const card = document.querySelector(`[data-index="${index}"]`);
+
+            // ✅ prevent crashes if anything is missing
+            if (!expanded || !chevron || !card) return;
+
+            // ✅ handles both "" and "none"
+            const isHidden = expanded.style.display === 'none' || expanded.style.display === '';
+
+            if (isHidden) {
+                expanded.style.display = 'block';
+                chevron.style.transform = 'rotate(180deg)';
+                card.classList.add('threat-card--open');
+            } else {
+                expanded.style.display = 'none';
+                chevron.style.transform = 'rotate(0deg)';
+                card.classList.remove('threat-card--open');
+            }
+        }
+    </script>
+
 </body>
+
 </html>

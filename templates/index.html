@@ -177,43 +177,16 @@
                 return;
             }
 
-            const btn = document.getElementById('analyze-btn');
-            btn.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-        style="animation:spin 1s linear infinite">
-            <circle cx="12" cy="12" r="10"/>
-        </svg>
-        Analyzing...
-    `;
-            btn.disabled = true;
+            // store file temporarily
+            const reader = new FileReader();
+            reader.onload = function () {
+                sessionStorage.setItem('pcap_file', reader.result);
+                sessionStorage.setItem('file_name', file.name);
 
-            // IMPORTANT: send actual file (not filename text)
-            const formData = new FormData();
-            formData.append("file", file);
-
-            fetch('/analyze', {
-                method: 'POST',
-                body: formData
-            })
-                .then(async res => {
-                    if (!res.ok) {
-                        throw new Error(await res.text());
-                    }
-                    return res.json();
-                })
-                .then(result => {
-                    sessionStorage.setItem('sentri_results', JSON.stringify(result));
-                    sessionStorage.setItem('file_name', file.name);
-
-                    window.location.href = '/loading';
-                })
-                .catch(err => {
-                    console.log(err);
-
-                    showToast('⚠ Unable to analyze file. Try again.');
-                    btn.innerHTML = `Analyze Flows`;
-                    btn.disabled = false;
-                });
+                // go to loading page
+                window.location.href = "/loading";
+            };
+            reader.readAsDataURL(file);
         }
 
         // Toast
