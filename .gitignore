@@ -1,7 +1,6 @@
 
 venv/
 data/
-extra/
 uploads/
 
 __pycache__/
