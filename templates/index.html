@@ -111,11 +111,10 @@
         <div class="formats">
             <span class="format-label">detects:</span>
             <span class="format-tag">DDoS</span>
-            <span class="format-tag">DoS</span>
-            <span class="format-tag">Mirai</span>
-            <span class="format-tag">Port Scan</span>
             <span class="format-tag">SQL Injection</span>
-            <span class="format-tag">MITM</span>
+            <span class="format-tag">GREIP Flood</span>
+            <span class="format-tag">Ping Sweep </span>
+            <span class="format-tag">Port Scan</span>
             <span class="format-tag">+ 28 more</span>
         </div>
 
@@ -128,6 +127,7 @@
     </div>
 
     <script>
+        let selectedFile = null;
         document.getElementById('file-input').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -135,14 +135,28 @@
         });
 
         function handleFile(file) {
+            // Validate file extension
+            if (!file.name.toLowerCase().endsWith('.pcap')) {
+                showToast('⚠ Invalid file. Please upload a .pcap file only.');
+                document.getElementById('file-input').value = '';
+                return;
+            }
+
+            // Validate file size (25MB limit)
+            if (file.size > 25 * 1024 * 1024) {
+                showToast('⚠ File too large. Maximum size is 25MB.');
+                document.getElementById('file-input').value = '';
+                return;
+            }
+
+            selectedFile = file;
+
             document.getElementById('filename-display').textContent = file.name;
             document.getElementById('badge-name').textContent = file.name;
             document.getElementById('file-badge').classList.add('visible');
 
             const dropZone = document.getElementById('tab-upload');
             dropZone.classList.add('file-loaded');
-
-            // just update text instead of destroying HTML
             dropZone.querySelector('.drop-text').innerHTML =
                 `<strong>File loaded</strong><br/>Click or drop to replace`;
 
@@ -168,7 +182,7 @@
         }
 
         // Analyze (IMPORTANT FIX HERE)
-        function analyzeFlows() {
+        async function analyzeFlows() {
             const fileInput = document.getElementById('file-input');
             const file = fileInput.files[0];
 
@@ -177,16 +191,51 @@
                 return;
             }
 
-            // store file temporarily
-            const reader = new FileReader();
-            reader.onload = function () {
-                sessionStorage.setItem('pcap_file', reader.result);
-                sessionStorage.setItem('file_name', file.name);
+            showToast('Preparing analysis...');
+            document.getElementById('analyze-btn').disabled = true;
 
-                // go to loading page
+            try {
+                await saveFileToIndexedDB(file);
+                sessionStorage.setItem('current_file_name', file.name);
+                sessionStorage.setItem('analysis_started', 'true');
                 window.location.href = "/loading";
-            };
-            reader.readAsDataURL(file);
+            } catch (err) {
+                console.error('Storage error:', err);
+                alert('Failed to prepare file for upload: ' + err.message);
+                document.getElementById('analyze-btn').disabled = false;
+                showToast('Preparation failed');
+            }
+        }
+
+        function saveFileToIndexedDB(file) {
+            return new Promise((resolve, reject) => {
+                const request = window.indexedDB.open('sentri-pcap-store', 1);
+
+                request.onupgradeneeded = function (event) {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('files')) {
+                        db.createObjectStore('files');
+                    }
+                };
+
+                request.onsuccess = function (event) {
+                    const db = event.target.result;
+                    const tx = db.transaction('files', 'readwrite');
+                    const store = tx.objectStore('files');
+                    const putReq = store.put(file, 'pending_pcap');
+
+                    putReq.onsuccess = function () {
+                        resolve();
+                    };
+                    putReq.onerror = function (e) {
+                        reject(e.target.error);
+                    };
+                };
+
+                request.onerror = function (event) {
+                    reject(event.target.error);
+                };
+            });
         }
 
         // Toast

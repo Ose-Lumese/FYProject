@@ -5,7 +5,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Processing — Sentri</title>
-
     <link
         href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap"
         rel="stylesheet" />
@@ -14,11 +13,9 @@
 
 <body class="loading">
 
-    <!-- background -->
     <div class="orb orb-1"></div>
     <div class="orb orb-2"></div>
 
-    <!-- nav -->
     <nav>
         <a class="nav-brand" href="/">
             <div class="nav-shield">🛡</div>
@@ -30,7 +27,6 @@
         </div>
     </nav>
 
-    <!-- main -->
     <main>
         <div class="loading-container">
             <div class="loading-card">
@@ -39,92 +35,235 @@
 
                 <div class="loading-status">
                     <div class="check-circle">✓</div>
-                    <p>File Upload Complete</p>
-                    <span id="file-display-name">loading...</span>
+                    <p id="status-label">Preparing analysis...</p>
+                    <span id="file-display-name" style="font-family:var(--font-mono); font-size:0.75rem; color:var(--muted); display:block; margin-top:4px;"></span>
                 </div>
 
                 <div class="steps">
-                    <div class="step done">
-                        ✔ Step 1/3: Pre-analysis check (Done)
-                    </div>
-
-                    <div class="step done">
-                        ✔ Step 2/3: Feature extraction (Done)
-                    </div>
-
-                    <div class="step active" id="step-3">
-                        <span class="loader"></span>
-                        Step 3/3: Running AI detection...
-                    </div>
+                    <div class="step" id="step-0">⚪ Step 1/3: Pre-analysis check</div>
+                    <div class="step" id="step-1">⚪ Step 2/3: Feature extraction</div>
+                    <div class="step" id="step-2">⚪ Step 3/3: Running AI detection</div>
                 </div>
 
-                <p class="eta">
-                    Estimated Time Remaining: <span id="eta">8 - 15 seconds</span>
-                </p>
+                <p class="eta" id="eta-text">Waiting to start...</p>
 
             </div>
         </div>
     </main>
 
     <script>
-        const storedFileName = sessionStorage.getItem('file_name');
+        // ---- GUARD: redirect if arrived here without analysis ----
+        const fileName    = sessionStorage.getItem('current_file_name');
+        const wasStarted  = sessionStorage.getItem('analysis_started');
 
-        document.getElementById('file-display-name').textContent =
-            storedFileName ? storedFileName : "uploaded_file.pcap";
+        if (!wasStarted) {
+            window.location.href = '/';
+        }
 
-        const stepEls = document.querySelectorAll(".step");
+        document.getElementById('file-display-name').textContent = fileName || 'uploaded_file.pcap';
 
-        const steps = [
-            "Step 1/3: Pre-analysis check",
-            "Step 2/3: Feature extraction",
-            "Step 3/3: Running AI detection"
+        // ---- STEP CONFIG ----
+        const STEP_IDS = ['step-0', 'step-1', 'step-2'];
+        const STEP_LABELS = [
+            'Step 1/3: Pre-analysis check',
+            'Step 2/3: Feature extraction',
+            'Step 3/3: Running AI detection'
         ];
 
-        let current = 0;
+        // Map backend status → which step index should be ACTIVE
+        const STATUS_TO_STEP = {
+            'idle':       -1,
+            'pre-check':   0,
+            'extracting':  1,
+            'predicting':  2,
+            'complete':    3   // all done
+        };
 
-        function render() {
-            stepEls.forEach((el, i) => {
+        // Minimum ms each step must be visible before advancing
+        const MIN_STEP_MS = 900;
 
-                if (i < current) {
-                    el.className = "step done";
-                    el.innerHTML = `✔ ${steps[i]}`;
+        let displayedStep   = -1;   // which step is currently shown as active (-1 = none yet)
+        let stepShownAt     = 0;    // timestamp when current displayed step became active
+        let pendingStep     = -1;   // step we want to advance to but are waiting for MIN_STEP_MS
+        let analysisComplete = false;
+        let pollInterval    = null;
+        let redirected      = false;
 
-                } else if (i === current) {
-                    el.className = "step active";
-                    el.innerHTML = `<span class="loader"></span> ${steps[i]}`;
-
+        // ---- RENDER ----
+        function renderSteps(activeIndex) {
+            STEP_IDS.forEach((id, i) => {
+                const el = document.getElementById(id);
+                if (i < activeIndex) {
+                    el.className = 'step done';
+                    el.innerHTML = `✔ ${STEP_LABELS[i]}`;
+                } else if (i === activeIndex) {
+                    el.className = 'step active';
+                    el.innerHTML = `<span class="loader"></span> ${STEP_LABELS[i]}`;
                 } else {
-                    el.className = "step";
-                    el.innerHTML = `⚪ ${steps[i]}`;
+                    el.className = 'step';
+                    el.innerHTML = `⚪ ${STEP_LABELS[i]}`;
                 }
             });
         }
 
-        function runStep() {
-            if (current >= steps.length) {
-
-                render();
-                
-                document.getElementById("eta").textContent = "Complete!";
-
-                setTimeout(() => {
-                    window.location.href = "/results";
-                }, 800);
-
-                return;
-            }
-
-            render();
-
-            setTimeout(() => {
-                current++;
-                runStep();
-            }, 1000); // adjust speed here
+        function setStatusLabel(text) {
+            document.getElementById('status-label').textContent = text;
         }
 
-        runStep();
+        function setEta(text) {
+            document.getElementById('eta-text').textContent = text;
+        }
+
+        // ---- ADVANCE STEP (respects MIN_STEP_MS) ----
+        function tryAdvanceTo(targetStep) {
+            if (targetStep <= displayedStep) return;
+
+            const now = Date.now();
+            const elapsed = now - stepShownAt;
+
+            if (displayedStep === -1 || elapsed >= MIN_STEP_MS) {
+                // Can advance immediately
+                displayedStep = targetStep;
+                stepShownAt   = now;
+                pendingStep   = -1;
+                renderSteps(displayedStep);
+            } else {
+                // Schedule advance after remaining time
+                const remaining = MIN_STEP_MS - elapsed;
+                pendingStep = targetStep;
+                setTimeout(() => {
+                    if (pendingStep === targetStep) {
+                        displayedStep = targetStep;
+                        stepShownAt   = Date.now();
+                        pendingStep   = -1;
+                        renderSteps(displayedStep);
+                    }
+                }, remaining);
+            }
+        }
+
+        // ---- POLL BACKEND STATUS ----
+        async function pollStatus() {
+            try {
+                const res  = await fetch('/status');
+                const data = await res.json();
+                const status = data.status;
+
+                console.log('Backend status:', status);
+
+                if (status === 'pre-check') {
+                    setStatusLabel('Running pre-analysis check...');
+                    setEta('Estimated: 8 – 30 seconds');
+                    tryAdvanceTo(0);
+
+                } else if (status === 'extracting') {
+                    setStatusLabel('Extracting flow features...');
+                    tryAdvanceTo(1);
+
+                } else if (status === 'predicting') {
+                    setStatusLabel('Running AI detection...');
+                    tryAdvanceTo(2);
+
+                } else if (status === 'complete' && !redirected) {
+                    redirected = true;
+                    clearInterval(pollInterval);
+
+                    // Mark all steps done
+                    STEP_IDS.forEach((id, i) => {
+                        const el = document.getElementById(id);
+                        el.className = 'step done';
+                        el.innerHTML = `✔ ${STEP_LABELS[i]}`;
+                    });
+
+                    setStatusLabel('Analysis complete!');
+                    setEta('Complete ✓');
+
+                    // Small pause so user sees all-green before redirect
+                    setTimeout(() => {
+                        sessionStorage.removeItem('current_file_name');
+                        sessionStorage.removeItem('analysis_started');
+                        window.location.href = '/results';
+                    }, 800);
+                }
+
+            } catch (err) {
+                console.error('Status poll error:', err);
+            }
+        }
+
+        // ---- INDEXED DB HELPERS ----
+        function openIndexedDB() {
+            return new Promise((resolve, reject) => {
+                const req = window.indexedDB.open('sentri-pcap-store', 1);
+                req.onupgradeneeded = e => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('files')) {
+                        db.createObjectStore('files');
+                    }
+                };
+                req.onsuccess = e => resolve(e.target.result);
+                req.onerror   = e => reject(e.target.error);
+            });
+        }
+
+        async function getPendingFile() {
+            const db = await openIndexedDB();
+            return new Promise((resolve, reject) => {
+                const tx    = db.transaction('files', 'readonly');
+                const store = tx.objectStore('files');
+                const req   = store.get('pending_pcap');
+                req.onsuccess = e => resolve(e.target.result);
+                req.onerror   = e => reject(e.target.error);
+            });
+        }
+
+        async function clearPendingFile() {
+            const db = await openIndexedDB();
+            return new Promise((resolve, reject) => {
+                const tx    = db.transaction('files', 'readwrite');
+                const store = tx.objectStore('files');
+                const req   = store.delete('pending_pcap');
+                req.onsuccess = () => resolve();
+                req.onerror   = e => reject(e.target.error);
+            });
+        }
+
+        // ---- MAIN ----
+        async function start() {
+            // Start polling immediately so steps animate as backend progresses
+            pollInterval = setInterval(pollStatus, 300);
+
+            try {
+                const file = await getPendingFile();
+                if (!file) throw new Error('No pending file in IndexedDB');
+
+                const formData = new FormData();
+                formData.append('file', file, fileName);
+
+                // Fire the upload — don't await results here,
+                // the poll loop handles the redirect when status = complete
+                const res  = await fetch('/analyze', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.error || 'Analysis failed');
+                }
+
+                // Backend finished — poll will catch 'complete' status and redirect
+
+            } catch (err) {
+                console.error('Analysis error:', err);
+                clearInterval(pollInterval);
+                alert('Analysis failed: ' + err.message);
+                await clearPendingFile().catch(() => {});
+                sessionStorage.removeItem('current_file_name');
+                sessionStorage.removeItem('analysis_started');
+                window.location.href = '/';
+            }
+        }
+
+        start();
     </script>
 
 </body>
-
 </html>

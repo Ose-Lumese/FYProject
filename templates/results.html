@@ -16,7 +16,6 @@
     <div class="orb orb-1"></div>
     <div class="orb orb-2"></div>
 
-    <!-- NAV — identical to index.html -->
     <nav>
         <a class="nav-brand" href="/">
             <div class="nav-shield">🛡</div>
@@ -34,15 +33,13 @@
         <div class="results-header">
             <a href="/" class="back-link">&#8592;</a>
             <div>
-                <!-- Matches index.html hero h1 with gradient span -->
                 <h1 class="results-title"><span>Analysis Results</span></h1>
-                <p class="results-subtitle">{{ total_flows }} flows analyzed</p>
+                <p class="results-subtitle">{{ total_flows }} flows analyzed · {{ malicious_count }} malicious</p>
             </div>
         </div>
 
         <!-- SUMMARY GRID -->
         <div class="summary-grid">
-
             <div class="summary-card">
                 <div class="summary-card-icon summary-icon-blue">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -87,7 +84,6 @@
                 </div>
                 <span class="summary-label">Threat Ratio</span>
             </div>
-
         </div>
 
         <!-- DETECTED THREATS HEADING -->
@@ -96,26 +92,69 @@
             <h2>Detected Threats</h2>
         </div>
 
-        <div class="filter-bar">
-            <button class="filter-btn active" onclick="filterThreats('all')">All</button>
-            <button class="filter-btn" onclick="filterThreats('DDoS')">DDoS</button>
-            <button class="filter-btn" onclick="filterThreats('DoS')">DoS</button>
-            <button class="filter-btn" onclick="filterThreats('Brute Force')">Brute Force</button>
-            <button class="filter-btn" onclick="filterThreats('Spoofing')">Spoofing</button>
-            <button class="filter-btn" onclick="filterThreats('Recon')">Recon</button>
-            <button class="filter-btn" onclick="filterThreats('Web-based')">Web-based</button>
-            <button class="filter-btn" onclick="filterThreats('Mirai')">Mirai</button>
+        <!-- IP SEARCH BAR -->
+        <div class="ip-search-wrap">
+            <div class="ip-search-box">
+                <svg class="ip-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2.5">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input type="text" id="ip-search-input" class="ip-search-input" placeholder="Search by IP address"
+                    autocomplete="off" spellcheck="false" onkeydown="if(event.key==='Enter') triggerIPSearch()" />
+                <button class="ip-search-clear" id="ip-clear-btn" onclick="clearIPSearch()" style="display:none;">
+                    &#x2715;
+                </button>
+            </div>
+            <button class="ip-search-btn" onclick="triggerIPSearch()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                Search
+            </button>
+        </div>
+
+        <!-- FILTER BAR -->
+        <div class="filter-bar" id="filter-bar">
+            <button class="filter-btn active" onclick="filterThreats('all', this)">
+                All <span class="filter-count" id="count-all">0</span>
+            </button>
+            <button class="filter-btn" onclick="filterThreats('DDoS', this)">
+                DDoS <span class="filter-count" id="count-DDoS">0</span>
+            </button>
+            <button class="filter-btn" onclick="filterThreats('DoS', this)">
+                DoS <span class="filter-count" id="count-DoS">0</span>
+            </button>
+            <button class="filter-btn" onclick="filterThreats('Brute Force', this)">
+                Brute Force <span class="filter-count" id="count-Brute Force">0</span>
+            </button>
+            <button class="filter-btn" onclick="filterThreats('Spoofing', this)">
+                Spoofing <span class="filter-count" id="count-Spoofing">0</span>
+            </button>
+            <button class="filter-btn" onclick="filterThreats('Recon', this)">
+                Recon <span class="filter-count" id="count-Recon">0</span>
+            </button>
+            <button class="filter-btn" onclick="filterThreats('Web-based', this)">
+                Web-based <span class="filter-count" id="count-Web-based">0</span>
+            </button>
+            <button class="filter-btn" onclick="filterThreats('Mirai', this)">
+                Mirai <span class="filter-count" id="count-Mirai">0</span>
+            </button>
         </div>
 
         <!-- THREATS LIST -->
-        <div class="threats-list">
-            {% for threat in threats %}
+        <div class="threats-list" id="threats-list">
+
             <div id="no-results-message" class="empty-state" style="display:none;">
                 <div class="empty-icon">&#9888;</div>
                 <p class="empty-title" id="empty-text">No threats found</p>
             </div>
-            <div class="threat-card" data-index="{{ loop.index0 }}" data-category="{{ threat.main_category }}">
-                <!-- COLLAPSED HEADER ROW — ✅ FIXED closing tag (was self-closing with </div> on wrong line) -->
+
+            {% for threat in threats %}
+            <div class="threat-card" data-index="{{ loop.index0 }}" data-category="{{ threat.main_category }}"
+                data-src-ip="{{ threat.source_ip }}" data-dst-ip="{{ threat.dest_ip }}">
+
                 <div class="threat-collapsed" onclick="toggleThreat({{ loop.index0 }})">
                     <div class="threat-collapsed-left">
                         <span class="severity-chip severity-{{ threat.severity | lower }}">{{ threat.severity }}</span>
@@ -127,7 +166,6 @@
                     </div>
                 </div>
 
-                <!-- SUMMARY LINE (always visible under collapsed header) -->
                 <div class="threat-summary-line">
                     <span class="threat-description">{{ threat.description }}</span>
                 </div>
@@ -139,9 +177,7 @@
                     <span class="meta-muted">{{ threat.service }}</span>
                 </div>
 
-                <!-- EXPANDED PANEL (toggled by JS) -->
                 <div class="threat-expanded" id="expanded-{{ loop.index0 }}" style="display:none;">
-
                     <div class="threat-description-expanded">{{ threat.description }}</div>
 
                     <div class="endpoint-grid">
@@ -194,10 +230,8 @@
                         </div>
                         <p class="ai-rec-body">{{ threat.recommendation }}</p>
                     </div>
-
                 </div>
             </div>
-
             {% else %}
             <div class="empty-state">
                 <div class="empty-icon">&#10003;</div>
@@ -205,6 +239,13 @@
                 <p class="empty-sub">All {{ total_flows }} analyzed flows appear benign.</p>
             </div>
             {% endfor %}
+        </div>
+
+        <!-- PAGINATION -->
+        <div class="pagination" id="pagination">
+            <button class="page-btn" id="prev-btn" onclick="changePage(-1)" disabled>&#8592; Prev</button>
+            <span class="page-info" id="page-info">1 of 1</span>
+            <button class="page-btn" id="next-btn" onclick="changePage(1)">Next &#8594;</button>
         </div>
 
         <!-- CROSS-FLOW CORRELATIONS -->
@@ -226,54 +267,140 @@
     </main>
 
     <script>
+        const PER_PAGE = 5;
+        let currentPage = 1;
+        let activeCategory = 'all';
+        let activeIPQuery = '';
 
-        function filterThreats(category) {
-            const cards = document.querySelectorAll('.threat-card');
-            const buttons = document.querySelectorAll('.filter-btn');
-            const emptyBox = document.getElementById('no-results-message');
-            const emptyText = document.getElementById('empty-text');
+        function getAllCards() {
+            return Array.from(document.querySelectorAll('.threat-card'));
+        }
 
-            buttons.forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
+        function getFilteredCards() {
+            return getAllCards().filter(card => {
+                const cat = card.getAttribute('data-category');
+                const srcIP = card.getAttribute('data-src-ip') || '';
+                const dstIP = card.getAttribute('data-dst-ip') || '';
 
-            let visibleCount = 0;
+                const catMatch = activeCategory === 'all' || cat === activeCategory;
+                const ipMatch = activeIPQuery === '' ||
+                    srcIP.includes(activeIPQuery) ||
+                    dstIP.includes(activeIPQuery);
 
-            cards.forEach(card => {
-                const type = card.getAttribute('data-category');
+                return catMatch && ipMatch;
+            });
+        }
 
-                if (category === 'all' || type === category) {
-                    card.style.display = 'block';
-                    visibleCount++;
-                } else {
-                    card.style.display = 'none';
-                }
+        // ---- IP SEARCH — only fires on button click or Enter ----
+        function triggerIPSearch() {
+            const value = document.getElementById('ip-search-input').value.trim();
+            activeIPQuery = value;
+            currentPage = 1;
+
+            const clearBtn = document.getElementById('ip-clear-btn');
+            clearBtn.style.display = activeIPQuery ? 'flex' : 'none';
+
+            // Update filter counts to reflect IP filter
+            updateFilterCounts();
+            renderPage();
+        }
+
+        function clearIPSearch() {
+            document.getElementById('ip-search-input').value = '';
+            document.getElementById('ip-clear-btn').style.display = 'none';
+            activeIPQuery = '';
+            currentPage = 1;
+            updateFilterCounts();
+            renderPage();
+        }
+
+        // ---- FILTER COUNTS — always reflects current IP filter ----
+        function updateFilterCounts() {
+            // Base pool: all cards filtered by active IP query
+            const ipFilteredCards = getAllCards().filter(card => {
+                const srcIP = card.getAttribute('data-src-ip') || '';
+                const dstIP = card.getAttribute('data-dst-ip') || '';
+                return activeIPQuery === '' ||
+                    srcIP.includes(activeIPQuery) ||
+                    dstIP.includes(activeIPQuery);
             });
 
-            // ✅ SHOW EMPTY MESSAGE
-            if (visibleCount === 0) {
-                emptyBox.style.display = 'block';
+            const categories = ['DDoS', 'DoS', 'Brute Force', 'Spoofing', 'Recon', 'Web-based', 'Mirai'];
 
-                if (category === 'all') {
-                    emptyText.textContent = "No threats found";
-                } else {
-                    emptyText.textContent = `No ${category} threats found`;
+            // All count = total matching IP filter
+            const allEl = document.getElementById('count-all');
+            if (allEl) allEl.textContent = ipFilteredCards.length;
+
+            categories.forEach(cat => {
+                const el = document.getElementById(`count-${cat}`);
+                if (!el) return;
+                const count = ipFilteredCards.filter(c => c.getAttribute('data-category') === cat).length;
+                el.textContent = count;
+                // Hide button if 0 AND an IP filter is active, otherwise keep visible
+                el.closest('.filter-btn').style.display =
+                    (count === 0 && activeIPQuery !== '') ? 'none' : '';
+                // If no IP filter, hide buttons with 0 across all cards
+                if (!activeIPQuery && count === 0) {
+                    el.closest('.filter-btn').style.display = 'none';
                 }
+            });
+        }
+
+        // ---- RENDER PAGE ----
+        function renderPage() {
+            const cards = getFilteredCards();
+            const totalPages = Math.max(1, Math.ceil(cards.length / PER_PAGE));
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const start = (currentPage - 1) * PER_PAGE;
+            const end = start + PER_PAGE;
+
+            getAllCards().forEach(c => c.style.display = 'none');
+            cards.forEach((card, i) => {
+                card.style.display = (i >= start && i < end) ? 'block' : 'none';
+            });
+
+            const emptyBox = document.getElementById('no-results-message');
+            if (cards.length === 0) {
+                emptyBox.style.display = 'block';
+                document.getElementById('empty-text').textContent =
+                    activeIPQuery
+                        ? `No threats found for IP: ${activeIPQuery}`
+                        : activeCategory === 'all'
+                            ? 'No threats found'
+                            : `No ${activeCategory} threats found`;
             } else {
                 emptyBox.style.display = 'none';
             }
+
+            const pagination = document.getElementById('pagination');
+            pagination.style.display = totalPages <= 1 ? 'none' : 'flex';
+            document.getElementById('page-info').textContent = `${currentPage} of ${totalPages}`;
+            document.getElementById('prev-btn').disabled = currentPage === 1;
+            document.getElementById('next-btn').disabled = currentPage === totalPages;
+        }
+
+        function changePage(dir) {
+            currentPage += dir;
+            renderPage();
+            document.getElementById('threats-list').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function filterThreats(category, btn) {
+            activeCategory = category;
+            currentPage = 1;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderPage();
         }
 
         function toggleThreat(index) {
             const expanded = document.getElementById(`expanded-${index}`);
             const chevron = document.getElementById(`chevron-${index}`);
             const card = document.querySelector(`[data-index="${index}"]`);
-
-            // ✅ prevent crashes if anything is missing
             if (!expanded || !chevron || !card) return;
 
-            // ✅ handles both "" and "none"
             const isHidden = expanded.style.display === 'none' || expanded.style.display === '';
-
             if (isHidden) {
                 expanded.style.display = 'block';
                 chevron.style.transform = 'rotate(180deg)';
@@ -284,6 +411,10 @@
                 card.classList.remove('threat-card--open');
             }
         }
+
+        // Init
+        updateFilterCounts();
+        renderPage();
     </script>
 
 </body>

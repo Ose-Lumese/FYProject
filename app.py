@@ -6,6 +6,9 @@ import pandas as pd
 from datetime import datetime
 from collections import Counter
 from flask import Flask, render_template, request, jsonify
+import uuid
+import threading
+import time
 
 from pcap_processor import pcap_to_csv
 
@@ -21,6 +24,21 @@ RESULT_FILE = os.path.join(UPLOAD_DIR, "latest_results.json")
 hybrid_model  = joblib.load(os.path.join(MODEL_DIR, "hybrid_model_final.pkl"))
 label_encoder = joblib.load(os.path.join(MODEL_DIR, "label_encoder_final.pkl"))
 print("Models loaded ✓")
+
+# ---- ANALYSIS STATUS TRACKING ----
+analysis_status = {
+    'status': 'idle',  # idle, pre-check, extracting, predicting, complete
+    'file_name': None,
+    'lock': threading.Lock()
+}
+
+def update_status(new_status, file_name=None):
+    """Thread-safe status update"""
+    with analysis_status['lock']:
+        analysis_status['status'] = new_status
+        if file_name is not None:
+            analysis_status['file_name'] = file_name
+        print(f"Status updated: {new_status}")
 
 # ---- ML FEATURE COLUMNS (must match training exactly) ----
 ML_FEATURES = [
@@ -373,6 +391,14 @@ def results():
 		threat_ratio_dash = threat_ratio_dash,
 	)
 
+@app.route('/status', methods=['GET'])
+def status():
+	"""Return current analysis status for frontend polling"""
+	with analysis_status['lock']:
+		return jsonify({
+			'status': analysis_status['status'],
+			'file_name': analysis_status['file_name']
+		})
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
@@ -381,31 +407,79 @@ def analyze():
 		return jsonify({"error": "No file uploaded"}), 400
 
 	os.makedirs(UPLOAD_DIR, exist_ok=True)
+	
+	# Update status: pre-check
+	update_status('pre-check', file.filename)
+	
+	# Create unique filenames to prevent file locking issues on Windows
+	unique_id = str(uuid.uuid4())[:8]
 	pcap_path   = os.path.join(UPLOAD_DIR, file.filename)
-	display_csv = os.path.join(UPLOAD_DIR, "display_records.csv")
-	model_csv   = os.path.join(UPLOAD_DIR, "prediction_ready.csv")
-	file.save(pcap_path)
+	display_csv = os.path.join(UPLOAD_DIR, f"display_records_{unique_id}.csv")
+	model_csv   = os.path.join(UPLOAD_DIR, f"prediction_ready_{unique_id}.csv")
+	
+	print(f"\n========== ANALYSIS START ==========")
+	print(f"File: {file.filename}")
+	print(f"PCAP path: {pcap_path}")
+	
+	try:
+		file.save(pcap_path)
+		print(f"✓ File saved successfully")
+	except Exception as e:
+		print(f"✗ File save failed: {e}")
+		update_status('idle')
+		return jsonify({"error": f"Failed to save file: {str(e)}"}), 500
 
+	# Small delay to ensure pre-check phase is visible
+	time.sleep(0.5)
+	
+	# Update status: extracting features
+	update_status('extracting')
+	
 	# ---- EXTRACT FEATURES ----
 	try:
+		print(f"→ Starting feature extraction...")
 		result = pcap_to_csv(pcap_path, display_csv, model_csv, window_size=10)
 		if result is None:
+			print(f"✗ Feature extraction returned None")
+			update_status('idle')
 			return jsonify({"error": "No flows could be extracted from the PCAP file."}), 400
 		df_display, df_model = result
+		print(f"✓ Feature extraction complete: {len(df_model)} flows extracted")
 	except Exception as e:
+		print(f"✗ Feature extraction failed: {str(e)}")
+		import traceback
+		traceback.print_exc()
+		update_status('idle')
 		return jsonify({"error": f"Feature extraction failed: {str(e)}"}), 500
 
 	if df_model.empty:
+		print(f"✗ No valid flows in df_model")
+		update_status('idle')
 		return jsonify({"error": "No valid flows extracted from PCAP."}), 400
 
+	# Small delay to ensure extracting phase is visible
+	time.sleep(0.5)
+	
+	# Update status: running prediction
+	update_status('predicting')
+	
 	# ---- RUN MODEL ----
 	try:
+		print(f"→ Running ML model prediction...")
 		X = df_model[ML_FEATURES].fillna(0)
 		predictions      = hybrid_model.predict(X)
 		predicted_labels = label_encoder.inverse_transform(predictions)
+		print(f"✓ Model prediction complete: {len(predictions)} predictions")
 	except Exception as e:
+		print(f"✗ Model prediction failed: {str(e)}")
+		import traceback
+		traceback.print_exc()
+		update_status('idle')
 		return jsonify({"error": f"Model prediction failed: {str(e)}"}), 500
 
+	# Small delay to ensure predicting phase is visible
+	time.sleep(0.5)
+	
 	# ---- BUILD RAW THREATS LIST ----
 	raw_threats = []
 	df_display  = df_display.reset_index(drop=True)
@@ -448,15 +522,8 @@ def analyze():
 	threats.sort(key=lambda x: severity_order.get(x['severity'], 5))
 
 	# ---- SUMMARY STATS ----
-	total_flows     = df_display['Flow_ID'].nunique()
-	malicious_flows = set()
-
-	for i, label in enumerate(predicted_labels):
-		if label != 'BenignTraffic':
-			flow_id = df_display.iloc[i]['Flow_ID']
-			malicious_flows.add(flow_id)
-
-	malicious_count = len(malicious_flows)
+	total_flows     = len(df_display)
+	malicious_count = len(threats)
 	threat_ratio    = round(malicious_count / total_flows * 100, 1) if total_flows > 0 else 0
 	correlations    = generate_correlations(threats)
 
@@ -466,11 +533,29 @@ def analyze():
 		"threat_ratio":    threat_ratio,
 		"threats":         threats,
 		"correlations":    correlations,
-	}
-
+	}	
 	with open(RESULT_FILE, 'w') as f:
 		json.dump(result_data, f)
+	
+	print(f"✓ Results saved to: {RESULT_FILE}")
+	print(f"  Total flows: {total_flows}, Malicious: {malicious_count}, Ratio: {threat_ratio}%")
+	print(f"========== ANALYSIS END ==========\n")
 
+	# Clean up temporary CSV files
+	try:
+		if os.path.exists(display_csv):
+			os.remove(display_csv)
+		if os.path.exists(model_csv):
+			os.remove(model_csv)
+		if os.path.exists(pcap_path):
+			os.remove(pcap_path)
+		print(f"✓ Temporary files cleaned up")
+	except Exception as e:
+		print(f"⚠ Warning: Could not delete temporary files: {e}")
+
+	# Update status to complete
+	update_status('complete')
+	
 	return jsonify(result_data)
 
 

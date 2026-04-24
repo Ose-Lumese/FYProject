@@ -373,6 +373,3 @@ def pcap_to_csv(pcap_file, display_csv, model_csv, window_size=10):
 
     return df_display, df_model
 
-# ---- USAGE ----
-# For a single pcap file
-df_display, df_model = pcap_to_csv('capture.pcap', 'display_records.csv', 'prediction_ready.csv', window_size=10)
